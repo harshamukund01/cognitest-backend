@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String              @id @default(uuid())
+  email            String              @unique
+  password         String
+  role             Role                @default(PATIENT)
+  otp              String?
+  otpExpiry        DateTime?
+  streakDays       Int                 @default(0)
+  lastActiveDate   DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  isOnboarded      Boolean             @default(false)
+  profile          Profile?
+  assessments      Assessment[]
+  patients         CaregiverRelation[] @relation("Caregiver")
+  caregivers       CaregiverRelation[] @relation("Patient")
+  chatSessions     ChatSession[]
+  reports          Report[]
+  tickets          SupportTicket[]
+  notifications    Notification[]
+  mriScans         MriScan[]
+  preScreening     PreScreening?
+  meditationSessions MeditationSession[]
+}
+
+model Profile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  firstName      String?
+  lastName       String?
+  fullName       String?
+  dob            DateTime?
+  age            Int?
+  gender         String?
+  language       String?
+  educationLevel String?
+  country        String?
+  medicalHistory Json?
+  lifestyleInfo  Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model MriScan {
+  id                    String   @id @default(uuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id])
+  fileName              String
+  prediction            String
+  confidence            Float
+  brainStructureSummary String
+  imageQuality          String
+  abnormalitiesDetected String
+  regionsHighlighted    String
+  createdAt             DateTime @default(now())
+}
+
+model PreScreening {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  answers         Json     // Stores symptom responses (Memory, Attention, Language, Executive)
+  riskLevel       String   // LOW, MODERATE, HIGH
+  recommendations String   // Recommended assessment categories JSON string
+  createdAt       DateTime @default(now())
+}
+
+model Assessment {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  type             String   // MEMORY, LOGIC, SPEED, LANGUAGE
+  score            Int
+  maxScore         Int
+  accuracy         Float?
+  correctAnswers   Int?
+  wrongAnswers     Int?
+  completionTimeMs Int?
+  reactionTimeMs   Int?
+  memoryScore        Float?
+  logicalScore       Float?
+  speedScore         Float?
+  languageScore      Float?
+  orientationScore   Float?
+  attentionScore     Float?
+  visuospatialScore  Float?
+  dailyLivingScore   Float?
+  caregiverScore     Float?
+  moodScore          Float?
+  completedAt        DateTime @default(now())
+  details            Json?    // Store detailed answers or timings
+}
+
+model Report {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  completedAt      DateTime @default(now())
+  cognitiveScore   Int
+  riskLevel        String   // LOW, MCI, HIGH
+  performanceGrade String   // A, B, C, D, F
+  recommendations  String   // Clinical suggestions
+  pdfPath          String?
+}
+
+model SupportTicket {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  subject     String
+  message     String
+  status      String   @default("OPEN") // OPEN, CLOSED
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model CaregiverRelation {
+  id          String   @id @default(uuid())
+  patientId   String
+  caregiverId String
+  status      String   @default("PENDING") // PENDING, ACTIVE, REJECTED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  patient     User     @relation("Patient", fields: [patientId], references: [id])
+  caregiver   User     @relation("Caregiver", fields: [caregiverId], references: [id])
+
+  @@unique([patientId, caregiverId])
+}
+
+model ChatSession {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  messages  Json     // Array of {role: 'user'|'ai', content: string, timestamp: Date}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  PATIENT
+  CAREGIVER
+  SPECIALIST
+  ADMIN
+}
+
+model Article {
+  id          String   @id @default(uuid())
+  title       String
+  category    String
+  content     String
+  author      String
+  publishDate DateTime @default(now())
+  readingTime String
+  thumbnail   String
+}
+
+model MeditationSession {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  durationMinutes Int
+  focusRating     Int?     // 1 to 5 scale
+  notes           String?
+  completedAt     DateTime @default(now())
+}
